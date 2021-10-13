@@ -241,7 +241,6 @@ class SPIRVVectorizePass : public SPIRVVectorizeBase<SPIRVVectorizePass> {
       llvm::dbgs() << "\n\n";
     });
 
-
     {
       RewritePatternSet vectorUnrollPatterns(funcOp.getContext());
       populateVectorUnrollPatterns(funcOp.getContext(), vectorUnrollPatterns);
@@ -265,6 +264,8 @@ class SPIRVVectorizePass : public SPIRVVectorizeBase<SPIRVVectorizePass> {
 
     {
       RewritePatternSet canonicalizationPatterns(funcOp.getContext());
+      vector::ExtractStridedSliceOp::getCanonicalizationPatterns(
+          canonicalizationPatterns, context);
       vector::populateVectorTransferPermutationMapLoweringPatterns(
           canonicalizationPatterns);
       (void)applyPatternsAndFoldGreedily(funcOp,
