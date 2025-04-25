@@ -306,7 +306,7 @@ static bool willBeContiguousSlice(OpFoldResult inputSize, OpFoldResult tileSize,
 //===----------------------------------------------------------------------===//
 
 Value computeQKAndElementwise(Location loc, OpBuilder &b, Value query,
-                              Value key, Value scale, std::optional<Value> mask,
+                              Value key, Value scale, std::optional<Value> mask, std::optional<Value> prob_output_scale,
                               AffineMap qMap, AffineMap kMap, AffineMap sMap,
                               std::optional<AffineMap> maskMap,
                               SmallVector<OpFoldResult> iterationDomain,
@@ -375,14 +375,19 @@ Value computeQKAndElementwise(Location loc, OpBuilder &b, Value query,
     // full fp8 range. We can do this with a offset as post `exp2` this equates
     // to multiplying by a static value. We are able to do this as `max` and
     // `sum` are scaled by the same value so the end result is the same.
-    auto fpTy = cast<FloatType>(qETy);
-    double mx =
-        APFloat::getLargest(fpTy.getFloatSemantics(), /*Negative=*/false)
-            .convertToDouble();
-    Value offset = b.create<arith::ConstantOp>(
-        loc, b.getFloatAttr(sElementType, clAttentionSoftmaxMax / mx));
-    s = elementwiseValueInPlace<arith::AddFOp>(b, loc, sMap, scaleMap, s,
-                                               offset);
+    if (prob_output_scale != nullptr) {
+      auto fpTy = cast<FloatType>(qETy);
+      double mx =
+          APFloat::getLargest(fpTy.getFloatSemantics(), /*Negative=*/false)
+             .convertToDouble();
+      Value offset = b.create<arith::ConstantOp>(
+          loc, b.getFloatAttr(sElementType, clAttentionSoftmaxMax / mx));
+      s = elementwiseValueInPlace<arith::AddFOp>(b, loc, sMap, scaleMap, s,
+                                                 offset);
+    } else {
+      s = elementwiseValueInPlace<arith::MulFOp>(b, loc, sMap, scaleMap, s,
+                                                 prob_output_scale.value());
+    }
   }
 
   // S += mask
@@ -431,7 +436,7 @@ FailureOr<SmallVector<Value>> AttentionOp::decomposeOperation(OpBuilder &b) {
   Type f32Type = b.getF32Type();
 
   // ---- QK Matmul + elementwise math ----
-  Value s = computeQKAndElementwise(loc, b, query, key, getScale(), mask, qMap,
+  Value s = computeQKAndElementwise(loc, b, query, key, getScale(), mask, getProbOutputScale(), qMap,
                                     kMap, sMap, getMaskMap(), sizes, f32Type,
                                     getRegion(), qkAttrs, lowPrecision);
 
@@ -547,7 +552,7 @@ OnlineAttentionOp::decomposeOperation(OpBuilder &b) {
 
   // ---- QK Matmul + elementwise math ----
   Value s = computeQKAndElementwise(
-      loc, b, query, key, getScale(), mask, qMap, kMap, sMap, getMaskMap(),
+      loc, b, query, key, getScale(), mask, nullptr, qMap, kMap, sMap, getMaskMap(),
       sizes, elementType, getRegion(), qkAttrs, lowPrecision);
 
   // TODO: This decomposition should be in a seperate op called

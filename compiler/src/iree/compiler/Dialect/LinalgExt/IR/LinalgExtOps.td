@@ -583,7 +583,8 @@ def IREELinalgExt_TopkOp : IREELinalgExt_Op<"topk",[
 //===----------------------------------------------------------------------===//
 
 def IREELinalgExt_AttentionOp : IREELinalgExt_PureOp<"attention",
-    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    [AttrSizedOperandSegments,
+     DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
      SingleBlockImplicitTerminator<"::mlir::iree_compiler::IREE::LinalgExt::YieldOp">,
      DestinationStyleOpInterface, LinalgExtInterface,
      DeclareOpInterfaceMethods<LinalgFusionInterface,
@@ -615,6 +616,7 @@ def IREELinalgExt_AttentionOp : IREELinalgExt_PureOp<"attention",
                        AnyShaped:$key,
                        AnyShaped:$value,
                        AnyFloat:$scale,
+                       Optional<AnyFloat>:$prob_output_scale,
                        Optional<AnyShaped>:$mask,
                        AnyShaped:$output,
                        AffineMapArrayAttr:$indexing_maps,
@@ -627,7 +629,8 @@ def IREELinalgExt_AttentionOp : IREELinalgExt_PureOp<"attention",
   let hasCustomAssemblyFormat = 1;
   let assemblyFormat = [{
     attr-dict
-    `ins` `(` $query `,` $key `,` $value `,` $scale (`,` $mask^)?  `:` type($query) `,` type($key) `,` type($value) `,` type($scale) (`,` type($mask)^ )?`)`
+    `ins` `(` $query `,` $key `,` $value `,` $scale (`,` $prob_output_scale^)? (`,` $mask^)?  `:` type($query) `,` type($key) `,` type($value) `,` type($scale) (`,` type($prob_output_scale)^ )?  (`,` type($mask)^ )? `)`
+
     `outs` `(` $output `:` type($output) `)`
     $region
     (`->` type($results)^)?
@@ -641,6 +644,7 @@ def IREELinalgExt_AttentionOp : IREELinalgExt_PureOp<"attention",
     "Value":$scale,
     "Value":$output,
     "ArrayAttr":$indexing_maps,
+    CArg<"std::optional<Value>", "std::nullopt">:$prob_output_scale,
     CArg<"std::optional<Value>", "std::nullopt">:$mask)>
   ];
 
@@ -669,6 +673,7 @@ def IREELinalgExt_AttentionOp : IREELinalgExt_PureOp<"attention",
       }
       return std::nullopt;
     }
+    // TODO: probOutputScale map and scale map should always be the trivial one, so we skip this
     AffineMap getOutputMap() {
       return cast<AffineMap>(getIndexingMapsArray()[getNumDpsInputs()]);
     }
