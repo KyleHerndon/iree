@@ -1379,10 +1379,10 @@ LogicalResult AttentionOp::verify() {
   return success();
 }
 MutableOperandRange AttentionOp::getDpsInitsMutable() {
-  //int maskCount = getMask() ? 1 : 0;
-  //int probOutputScaleCount = getProbOutputScale() ? 1 : 0;
-  //int count = 5 + maskCount + probOutputScaleCount;
-  return MutableOperandRange(*this, /*numInputs=*/0,
+  int maskCount = getMask() ? 1 : 0;
+  int probOutputScaleCount = getProbOutputScale() ? 1 : 0;
+  int count = 4 + maskCount + probOutputScaleCount;
+  return MutableOperandRange(*this, /*numInputs=*/count,
                              /*numInits=*/1);
 }
 
