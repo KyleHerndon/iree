@@ -353,7 +353,7 @@ getIndexingMapInExpandedOp(OpBuilder &builder, AffineMap indexingMap,
   SmallVector<AffineExpr> newExprs;
   for (AffineExpr expr : indexingMap.getResults()) {
     unsigned pos = cast<AffineDimExpr>(expr).getPosition();
-    auto expandedExprs = llvm::to_vector_of<AffineExpr, 6>(
+    auto expandedExprs = llvm::to_vector_of<AffineExpr, 7>(
         llvm::map_range(expansionInfo.getExpandedLoops(pos), [&](int64_t v) {
           return builder.getAffineDimExpr(static_cast<unsigned>(v));
         }));
@@ -403,7 +403,7 @@ static std::optional<SmallVector<Value>> fuseAttentionWithReshapeByExpansion(
                       : collapsingReshapeOp.getReassociationIndices(),
           expandedType.getShape())))
     return std::nullopt;
-  auto expandedOpIndexingMaps = llvm::to_vector_of<AffineMap, 6>(
+  auto expandedOpIndexingMaps = llvm::to_vector_of<AffineMap, 7>(
       llvm::map_range(attentionOp.getIndexingMapsArray(), [&](AffineMap m) {
         return getIndexingMapInExpandedOp(rewriter, m, expansionInfo);
       }));
@@ -439,8 +439,14 @@ static std::optional<SmallVector<Value>> fuseAttentionWithReshapeByExpansion(
   output = *maybeOutput;
 
   Value maskOperand;
+  Value probOutputScaleOperand;
   if (expandedOpOperands.size() > 4) {
-    maskOperand = expandedOpOperands[4];
+    if (expandedOpOperands.size() > 5) {
+      maskOperand = expandedOpOperands[5];
+      probOutputScaleOperand = expandedOpOperands[4];
+    } else {
+      maskOperand = expandedOpOperands[4];
+    }
   }
 
   // Create a new `AttentionOp` that has the computed operands/indexing maps.
@@ -449,7 +455,7 @@ static std::optional<SmallVector<Value>> fuseAttentionWithReshapeByExpansion(
       attentionOp.getLoc(), resultTypes, expandedOpOperands[0],
       expandedOpOperands[1], expandedOpOperands[2], expandedOpOperands[3],
       output, rewriter.getAffineMapArrayAttr(expandedOpIndexingMaps),
-      maskOperand);
+      probOutputScaleOperand, maskOperand);
 
   rewriter.inlineRegionBefore(attentionOp.getRegion(), fusedOp.getRegion(),
                               fusedOp.getRegion().begin());

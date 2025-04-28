@@ -1272,7 +1272,8 @@ LogicalResult AttentionOp::verify() {
   // Check if indexing maps can represent attention.
   SmallVector<AffineMap> indexingMaps = attnOp.getIndexingMapsArray();
   if (indexingMaps.size() != getOperation()->getNumOperands()) {
-    return attnOp->emitOpError("expected an indexing map for each operand");
+    return attnOp->emitOpError("expected an indexing map for each operand. Got: ") <<
+		    indexingMaps.size() << " indexing maps and " << getOperation()->getNumOperands() << " operands";
   }
   FailureOr<AttentionOpDetail> maybeOpInfo = AttentionOpDetail::get(
       getQueryMap(), getKeyMap(), getValueMap(), getOutputMap());
