@@ -629,8 +629,9 @@ def IREELinalgExt_AttentionOp : IREELinalgExt_PureOp<"attention",
   let hasCustomAssemblyFormat = 1;
   let assemblyFormat = [{
     attr-dict
-    `ins` `(` $query `,` $key `,` $value `,` $scale (`,` $prob_output_scale^)? (`,` $mask^)?  `:` type($query) `,` type($key) `,` type($value) `,` type($scale) (`,` type($prob_output_scale)^ )?  (`,` type($mask)^ )? `)`
-
+    `ins` `(` $query `,` $key `,` $value `,` $scale `:` type($query) `,` type($key) `,` type($value) `,` type($scale) `)`
+    (`probOutputScale` `(` $prob_output_scale^ `:` type($prob_output_scale) `)`)?
+    (`mask` `(` $mask^ `:` type($mask) `)`)?
     `outs` `(` $output `:` type($output) `)`
     $region
     (`->` type($results)^)?
