@@ -2110,6 +2110,9 @@ AttentionOp::getTiledImplementation(OpBuilder &builder,
 
   // Scale
   tiledOperands.emplace_back(scale);
+  Value probOutputScale = getProbOutputScale();
+  if (probOutputScale)
+    tiledOperands.push_back(probOutputScale);
 
   // Mask
   Value attnMask = getMask();
@@ -2133,8 +2136,7 @@ AttentionOp::getTiledImplementation(OpBuilder &builder,
 
   SmallVector<Type> resultTypes;
   if (hasPureTensorSemantics()) {
-    int64_t baseIdx = attnMask ? 5 : 4;
-    resultTypes.push_back(tiledOperands[baseIdx].getType());
+    resultTypes.push_back(tiledOperands.back().getType());
   }
 
   Operation *tiledOp =
@@ -2266,8 +2268,12 @@ OnlineAttentionOp::getTiledImplementation(OpBuilder &builder,
     tiledOperands.emplace_back(valueSliceOp->getResult(0));
     slices.push_back(valueSliceOp);
   }
-
+  
+  /// Scale
   tiledOperands.emplace_back(scale);
+  Value probOutputScale = getProbOutputScale();
+  if (probOutputScale)
+    tiledOperands.push_back(probOutputScale);
 
   // Mask
   Value attnMask = getMask();

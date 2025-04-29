@@ -696,7 +696,8 @@ def IREELinalgExt_AttentionOp : IREELinalgExt_PureOp<"attention",
 //===----------------------------------------------------------------------===//
 
 def IREELinalgExt_OnlineAttentionOp : IREELinalgExt_PureOp<"online_attention",
-    [DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
+    [AttrSizedOperandSegments,
+     DeclareOpInterfaceMethods<MemoryEffectsOpInterface>,
      SingleBlockImplicitTerminator<"::mlir::iree_compiler::IREE::LinalgExt::YieldOp">,
      DestinationStyleOpInterface, LinalgExtInterface,
      DeclareOpInterfaceMethods<ReifyRankedShapedTypeOpInterface>,
@@ -743,6 +744,7 @@ def IREELinalgExt_OnlineAttentionOp : IREELinalgExt_PureOp<"online_attention",
                        AnyShaped:$key,
                        AnyShaped:$value,
                        AnyFloat:$scale,
+		       Optional<AnyFloat>:$prob_output_scale,
                        Optional<AnyShaped>:$mask,
                        AnyShaped:$output,
                        AnyShaped:$max,
@@ -757,7 +759,9 @@ def IREELinalgExt_OnlineAttentionOp : IREELinalgExt_PureOp<"online_attention",
   let hasCustomAssemblyFormat = 1;
   let assemblyFormat = [{
     attr-dict
-    `ins` `(` $query `,` $key `,` $value `,` $scale (`,` $mask^)?  `:` type($query) `,` type($key) `,` type($value) `,` type($scale) (`,` type($mask)^ )?`)`
+    `ins` `(` $query `,` $key `,` $value `,` $scale  `:` type($query) `,` type($key) `,` type($value) `,` type($scale) `)`
+    (`probOutputScale` `(` $prob_output_scale^ `:` type($prob_output_scale) `)`)?
+    (`mask` `(` $mask^ `:` type($mask) `)`)?
     `outs` `(` $output `,` $max `,` $sum `:` type($output) `,` type($max) `,` type($sum) `)`
     $region
     (`->` type($results)^)?
@@ -773,6 +777,7 @@ def IREELinalgExt_OnlineAttentionOp : IREELinalgExt_PureOp<"online_attention",
     "Value":$max,
     "Value":$sum,
     "ArrayAttr":$indexing_maps,
+    CArg<"std::optional<Value>", "std::nullopt">:$prob_output_scale,
     CArg<"std::optional<Value>", "std::nullopt">:$mask)>
   ];
 
@@ -798,10 +803,12 @@ def IREELinalgExt_OnlineAttentionOp : IREELinalgExt_PureOp<"online_attention",
     }
     std::optional<AffineMap> getMaskMap() {
       if (getMask()) {
+          if(getProbOutputScale()) return cast<AffineMap>(getIndexingMapsArray()[5]);
         return cast<AffineMap>(getIndexingMapsArray()[4]);
       }
       return std::nullopt;
     }
+    // TODO: probOutputScale map and scale map should always be the trivial one, so we skip this
     AffineMap getOutputMap() {
       return cast<AffineMap>(getIndexingMapsArray()[getNumDpsInputs()]);
     }

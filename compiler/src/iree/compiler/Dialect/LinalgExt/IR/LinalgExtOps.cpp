@@ -1443,9 +1443,11 @@ void OnlineAttentionOp::build(OpBuilder &odsBuilder, OperationState &odsState,
                               TypeRange results, Value query, Value key,
                               Value value, Value scale, Value output, Value max,
                               Value sum, ArrayAttr indexingMaps,
+			      std::optional<Value> probOutputScale,
                               std::optional<Value> mask) {
   Value maskIn = mask.value_or(Value());
-  build(odsBuilder, odsState, results, query, key, value, maskIn, scale, output,
+  Value probOutputScaleIn = probOutputScale.value_or(Value());
+  build(odsBuilder, odsState, results, query, key, value, probOutputScaleIn, maskIn, scale, output,
         max, sum, indexingMaps, DictionaryAttr());
 }
 
