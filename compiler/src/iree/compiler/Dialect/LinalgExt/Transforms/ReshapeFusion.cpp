@@ -871,14 +871,20 @@ static Operation *createCollapsedOp(AttentionOp origOp,
       origOp.getLoopIteratorTypes(), collapsingInfo));
 
   Value maskOperand;
+  Value probOutputScaleOperand;
   if (inputOperands.size() > 4) {
-    maskOperand = inputOperands[4];
+    if (inputOperands.size() > 5) {
+      maskOperand = inputOperands[5];
+      probOutputScaleOperand = inputOperands[4];
+    } else {
+      maskOperand = inputOperands[4];
+    }
   }
 
   auto collapsedOp = rewriter.create<AttentionOp>(
       origOp.getLoc(), resultTypes, inputOperands[0], inputOperands[1],
       inputOperands[2], inputOperands[3], outputOperands[0],
-      rewriter.getAffineMapArrayAttr(indexingMaps), maskOperand);
+      rewriter.getAffineMapArrayAttr(indexingMaps), probOutputScaleOperand, maskOperand);
   rewriter.inlineRegionBefore(origOp.getRegion(), collapsedOp.getRegion(),
                               collapsedOp.getRegion().begin());
   return collapsedOp;
